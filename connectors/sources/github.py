@@ -673,8 +673,8 @@ class GitHubClient:
     def set_logger(self, logger_):
         self._logger = logger_
 
-    def get_rate_limit_encountered(self, status_code, message):
-        return status_code == FORBIDDEN and "rate limit" in str(message).lower()
+    def get_rate_limit_encountered(self, exception):
+        return exception.status_code == FORBIDDEN and "rate limit" in str(exception).lower() or exception.headers['X-RateLimit-Remaining'] == '0'
 
     async def _get_retry_after(self, resource_type):
         current_time = time.time()
@@ -828,7 +828,7 @@ class GitHubClient:
                     raise
                 msg = "Your Github token is either expired or revoked. Please check again."
                 raise UnauthorizedException(msg) from exception
-            elif exception.status == FORBIDDEN:
+            elif self.get_rate_limit_encountered(exception):
                 msg = f"Provided GitHub token does not have the necessary permissions to perform the request for the URL: {resource}."
                 raise ForbiddenException(msg) from exception
             else:
